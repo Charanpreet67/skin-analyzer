@@ -76,7 +76,19 @@ function pixels(img){
 $("go").onclick = async () => {
   $("go").disabled = true; $("out").textContent = "Analyzing...";
   try{
-    const input = new ort.Tensor("float32", pixels(picture), [1,S,S,3]);
+        const px = pixels(picture);
+    let skin = 0;
+    for(let n=0;n<px.length;n+=3){
+      const r = px[n], g = px[n+1], b = px[n+2];
+      const cb = 128 - 0.169*r - 0.331*g + 0.5*b;
+      const cr = 128 + 0.5*r - 0.419*g - 0.081*b;
+      if(cb >= 77 && cb <= 127 && cr >= 135 && cr <= 180) skin++;
+    }
+    if(skin / (S*S) < 0.30){
+      $("out").innerHTML = '<h2>No skin detected</h2><p>Please upload a clear, close-up photo of skin in good light.</p><p class="small">This is a simple colour check and can be wrong. If this was a skin photo, a dermatologist can still assess it.</p>';
+      ready(); return;
+    }
+    const input = new ort.Tensor("float32", px, [1,S,S,3]);
     const result = await session.run({[session.inputNames[0]]: input});
     show(Array.from(result[session.outputNames[0]].data));
   }catch(e){ $("out").textContent = "Could not analyze: " + e.message; }
